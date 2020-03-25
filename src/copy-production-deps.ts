@@ -15,8 +15,6 @@ import fsExtra from "fs-extra";
 import debugFactory from "debug";
 const debug = debugFactory("copy-production-deps");
 
-let errors = 0;
-
 const rootDir = path.dirname(process.cwd());
 
 export function absolute(p: string) {
@@ -284,6 +282,7 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
 export interface CopyProductionDepsOptions {
     dryRun?: boolean;
     verbose?: boolean;
+    excludePaths?: (srcFileName: string) => boolean;
 }
 
 export async function copyProductionDeps(
@@ -324,6 +323,10 @@ export async function copyProductionDeps(
     }
 
     for (const resolvedDependency of targetPackages) {
+        const skipDep = options.excludePaths ? options.excludePaths(resolvedDependency.sourceDir) : false;
+        if (skipDep) {
+            continue;
+        }
         debug(`copy ${resolvedDependency.sourceDir} -> ${resolvedDependency.targetDir}`);
         if (options.verbose) {
             console.error(`${relative(resolvedDependency.sourceDir)} -> ${relative(resolvedDependency.targetDir)}`);
@@ -334,9 +337,9 @@ export async function copyProductionDeps(
         await fsExtra.copy(resolvedDependency.sourceDir + "/", resolvedDependency.targetDir + "/", {
             recursive: true,
             filter: (src: string, dest: string) => {
-                const verdict = true && !options.dryRun;
+                const verdict = options.excludePaths ? !options.excludePaths(src) : true;
                 debug("filter", src, dest, verdict);
-                return verdict;
+                return verdict && !options.dryRun;
             }
         });
     }
