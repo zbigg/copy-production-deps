@@ -149,6 +149,7 @@ describe("copy-production-deps", function() {
             assertPackageExists("./dist", { name: "c", version: "1.0.0" });
         });
     });
+
     describe("use case #2 - yarn-workspace like module with messed dependencies", function() {
         before(function() {
             mockFs({
@@ -304,7 +305,7 @@ describe("copy-production-deps", function() {
             });
         });
         it("#copyProductionDeps copies files to proper places", async function() {
-            await copyProductionDeps("workspaceRoot/foo-backend", "dist/");
+            await copyProductionDeps("workspaceRoot/foo-backend", "dist/")
 
             assertPackageExists("./dist", { name: "a", version: "1.0.0" });
             assertPackageExists("./dist", { name: "b", version: "0.1.0" });

@@ -14,7 +14,8 @@
     "scripts": {
         "build": "tsc",
         "prepare": "tsc",
-        "test": "mocha --forbid-only"
+        "test": "mocha --forbid-only",
+        "cov-test": "nyc mocha"
     },
     "devDependencies": {
         "@types/chai": "^4.2.11",
@@ -25,8 +26,10 @@
         "@types/mock-fs": "^4.10.0",
         "@types/node": "^12.12.31",
         "@types/semver": "^7.1.0",
+        "@types/yargs": "^15.0.4",
         "chai": "^4.2.0",
         "mocha": "^7.1.1",
+        "nyc": "^15.0.0",
         "mock-fs": "^4.11.0",
         "prettier": "^2.0.2",
         "ts-node": "^8.8.1",
@@ -36,6 +39,7 @@
         "debug": "^4.1.1",
         "fs-extra": "^9.0.0",
         "lodash": "^4.17.15",
-        "semver": "^7.1.3"
+        "semver": "^7.1.3",
+        "yargs": "^15.3.1"
     }
 }

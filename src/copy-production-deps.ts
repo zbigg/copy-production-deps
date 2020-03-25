@@ -32,6 +32,12 @@ export interface Dependency {
     version: string;
 }
 
+export interface BadDependency {
+    name: string;
+    version: string;
+    users: SourcePackage[];
+}
+
 export interface SourcePackage extends Dependency {
     level: number;
     sourceDir: string;
@@ -44,6 +50,15 @@ export interface ResolvedPackage extends SourcePackage {
     parent?: ResolvedPackage | undefined;
 }
 
+function isProperSourcePackage(pkg: SourcePackage | BadDependency): pkg is SourcePackage {
+    return typeof (pkg as SourcePackage).sourceDir === "string";
+}
+
+function isBadDependency(pkg: SourcePackage | BadDependency): pkg is BadDependency {
+    return typeof (pkg as SourcePackage).sourceDir === "undefined";
+}
+
+export type Context = Array<SourcePackage | BadDependency>;
 /**
  * Check if `targetPackage` is resolvable from context of `user` package.
  */
@@ -75,9 +90,9 @@ function loadJsonSync(filePath: string) {
 function addPackage(
     r: Pick<SourcePackage, "name" | "version" | "sourceDir">,
     user: SourcePackage,
-    context: SourcePackage[]
+    context: Context
 ): SourcePackage {
-    for (const existingEntry of context) {
+    for (const existingEntry of context.filter(isProperSourcePackage)) {
         if (
             existingEntry.name === r.name &&
             existingEntry.version === r.version &&
@@ -88,7 +103,6 @@ function addPackage(
             return existingEntry;
         }
     }
-    //console.log(`${r.name}@${r.version} will use ${r.sourceDir}`);
     const newEntry: SourcePackage = {
         ...r,
         level: user.level + 1,
@@ -107,7 +121,7 @@ function addPackage(
  * Fills `context` and respective `pkg.deps` thus creating linked tree of packages starting with
  * `pkg`.
  */
-function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Dependency[], context: SourcePackage[]) {
+function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Dependency[], context: Context) {
     const subPackages: SourcePackage[] = [];
     for (const { name, version } of dependencies) {
         // Start from sourcePackageDir/node_modules and look for deps, they should be there or
@@ -145,7 +159,11 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
                 searchPackageDir = path.resolve(searchPackageDir, "..");
             } else {
                 console.error(`error: cannot find ${name} required in ${pkg.sourceDir}`);
-                errors++;
+                context.push({
+                    name,
+                    version,
+                    users: [pkg]
+                });
                 break;
             }
         }
@@ -156,7 +174,7 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
     }
 }
 
-export function processPackage(pkg: SourcePackage, context: SourcePackage[]) {
+export function processPackage(pkg: SourcePackage, context: Context) {
     const packageJsonPath = absolute(path.join(pkg.sourceDir, "package.json"));
     const packageJson = loadJsonSync(packageJsonPath);
     const localDependencies = Object.keys(packageJson.dependencies || {}).map(name => {
@@ -183,9 +201,9 @@ export function processPackage(pkg: SourcePackage, context: SourcePackage[]) {
 //     return bestVersion;
 // }
 
-export function assignTargetDirs(allPackages: SourcePackage[], rootPkg: ResolvedPackage): ResolvedPackage[] {
+export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage): ResolvedPackage[] {
     const byName: Map<string, SourcePackage[]> = new Map();
-    for (const dr of allPackages) {
+    for (const dr of allPackages.filter(isProperSourcePackage)) {
         const packageResults = byName.get(dr.name);
         if (packageResults === undefined) {
             byName.set(dr.name, [dr]);
@@ -263,7 +281,7 @@ export function assignTargetDirs(allPackages: SourcePackage[], rootPkg: Resolved
     return result;
 }
 
-interface CopyProductionDepsOptions {
+export interface CopyProductionDepsOptions {
     dryRun?: boolean;
     verbose?: boolean;
 }
@@ -272,7 +290,7 @@ export async function copyProductionDeps(
     sourceDir: string,
     targetDir: string,
     options: CopyProductionDepsOptions = {}
-): Promise<void> {
+): Promise<ResolvedPackage[]> {
     const context: SourcePackage[] = [];
     const rootDep: ResolvedPackage = {
         sourceDir: sourceDir,
@@ -283,8 +301,19 @@ export async function copyProductionDeps(
         targetDir: targetDir,
         level: 0
     };
+    if (options.verbose) {
+        console.error(`copy-production-deps: collecting production packages for ${relative(sourceDir)}`);
+    }
     processPackage(rootDep, context);
-
+    const badPackages = context.filter(isBadDependency);
+    if (badPackages.length > 0) {
+        throw Object.assign(new Error("Some packages not found."), {
+            badPackages
+        });
+    }
+    if (options.verbose) {
+        console.error(`copy-production-deps: found ${context.length} packages`);
+    }
     const targetPackages = assignTargetDirs(context, rootDep);
 
     const targetNodeModules = path.join(targetDir, "node_modules");
@@ -297,7 +326,7 @@ export async function copyProductionDeps(
     for (const resolvedDependency of targetPackages) {
         debug(`copy ${resolvedDependency.sourceDir} -> ${resolvedDependency.targetDir}`);
         if (options.verbose) {
-            console.error(`copy-production-deps: ${resolvedDependency.sourceDir} -> ${resolvedDependency.targetDir}`);
+            console.error(`${relative(resolvedDependency.sourceDir)} -> ${relative(resolvedDependency.targetDir)}`);
         }
         if (!options.dryRun) {
             fsExtra.ensureDirSync(resolvedDependency.targetDir);
@@ -311,4 +340,5 @@ export async function copyProductionDeps(
             }
         });
     }
+    return targetPackages;
 }
