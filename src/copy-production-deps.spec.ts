@@ -118,4 +118,159 @@ describe("copy-production-deps", function() {
             });
         });
     });
+    describe("use case #2 - yarn-workspace like module with messed dependencies", function() {
+        before(function() {
+            mockFs({
+                workspaceRoot: {
+                    "foo-backend": {
+                        "package.json": JSON.stringify({
+                            name: "foo",
+                            version: "0.1.0",
+                            dependencies: {
+                                a: "^1.0.0",
+                                b: "^0.1.0",
+                                d: "^1.0.0"
+                            },
+                            devDependencies: {
+                                x: "^1.0.0"
+                            }
+                        }),
+                        node_modules: {
+                            b: {
+                                "package.json": JSON.stringify({
+                                    name: "a",
+                                    version: "0.1.0"
+                                })
+                            },
+                            d: {
+                                "package.json": JSON.stringify({
+                                    name: "d",
+                                    version: "1.0.0"
+                                })
+                            },
+                            x: {
+                                "package.json": JSON.stringify({
+                                    name: "x",
+                                    version: "1.0.0"
+                                })
+                            }
+                        }
+                    },
+                    node_modules: {
+                        a: {
+                            "package.json": JSON.stringify({
+                                name: "a",
+                                version: "1.0.0",
+                                dependencies: {
+                                    b: "^1.0.0"
+                                }
+                            })
+                        },
+                        b: {
+                            "package.json": JSON.stringify({
+                                name: "b",
+                                version: "1.0.0",
+                                dependencies: {
+                                    c: "^2.0.0"
+                                }
+                            })
+                        },
+                        c: {
+                            "package.json": JSON.stringify({
+                                name: "c",
+                                version: "2.0.0"
+                            })
+                        }
+                    }
+                }
+            });
+        });
+        after(function() {
+            mockFs.restore();
+        });
+        const context: SourcePackage[] = [];
+        const rootDep: ResolvedPackage = {
+            sourceDir: "workspaceRoot/foo-backend",
+            name: "root",
+            version: "n/a",
+            users: [],
+            deps: [],
+            targetDir: "THE-TARGET",
+            level: 0
+        };
+        it("#processPackage finds all packages", function() {
+            processPackage(rootDep, context);
+
+            const interestingContext = context.map(r => _.pick(r, ["name", "sourceDir", "version"]));
+            assert.includeDeepMembers(interestingContext as any, [
+                {
+                    name: "a",
+                    sourceDir: "workspaceRoot/node_modules/a",
+                    version: "1.0.0"
+                },
+                {
+                    name: "b",
+                    sourceDir: "workspaceRoot/node_modules/b",
+                    version: "1.0.0"
+                },
+                {
+                    name: "b",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/b",
+                    version: "0.1.0"
+                },
+                {
+                    name: "c",
+                    sourceDir: "workspaceRoot/node_modules/c",
+                    version: "2.0.0"
+                }
+            ]);
+            assert.notDeepNestedInclude(interestingContext as any, {
+                name: "x",
+                sourceDir: "workspaceRoot/foo-backend/node_modules/x",
+                version: "1.0.0"
+            });
+        });
+        it("#assignTargetDirs emits target folders", function() {
+            const testedPackages = assignTargetDirs(context, rootDep).map(r =>
+                _.pick(r, ["name", "sourceDir", "targetDir", "version"])
+            );
+            assert.includeDeepMembers(testedPackages as any, [
+                {
+                    name: "a",
+                    sourceDir: "workspaceRoot/node_modules/a",
+                    targetDir: "THE-TARGET/node_modules/a",
+                    version: "1.0.0"
+                },
+                {
+                    name: "b",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/b",
+                    targetDir: "THE-TARGET/node_modules/b",
+                    version: "0.1.0"
+                },
+                {
+                    name: "b",
+                    sourceDir: "workspaceRoot/node_modules/b",
+                    targetDir: "THE-TARGET/node_modules/a/node_modules/b",
+                    version: "1.0.0"
+                },
+                {
+                    name: "c",
+                    sourceDir: "workspaceRoot/node_modules/c",
+                    targetDir: "THE-TARGET/node_modules/c",
+                    version: "2.0.0"
+                },
+                {
+                    name: "d",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/d",
+                    targetDir: "THE-TARGET/node_modules/d",
+                    version: "1.0.0"
+                }
+            ]);
+            assert.notDeepNestedInclude(testedPackages as any, {
+                name: "x",
+                sourceDir: "workspaceRoot/node_modules/x",
+                targetDir: "THE-TARGET/node_modules/x"
+            });
+        });
+    });
 });
