@@ -11,6 +11,9 @@ import path from "path";
 import fs from "fs";
 import semver from "semver";
 import _ from "lodash";
+import fsExtra from "fs-extra";
+import debugFactory from "debug";
+const debug = debugFactory("copy-production-deps");
 
 let errors = 0;
 
@@ -258,4 +261,54 @@ export function assignTargetDirs(allPackages: SourcePackage[], rootPkg: Resolved
         getResolved(pkg, user);
     }
     return result;
+}
+
+interface CopyProductionDepsOptions {
+    dryRun?: boolean;
+    verbose?: boolean;
+}
+
+export async function copyProductionDeps(
+    sourceDir: string,
+    targetDir: string,
+    options: CopyProductionDepsOptions = {}
+): Promise<void> {
+    const context: SourcePackage[] = [];
+    const rootDep: ResolvedPackage = {
+        sourceDir: sourceDir,
+        name: "root",
+        version: "n/a",
+        users: [],
+        deps: [],
+        targetDir: targetDir,
+        level: 0
+    };
+    processPackage(rootDep, context);
+
+    const targetPackages = assignTargetDirs(context, rootDep);
+
+    const targetNodeModules = path.join(targetDir, "node_modules");
+    debug(`removing ${targetNodeModules}`);
+    if (!options.dryRun) {
+        fsExtra.removeSync(targetNodeModules);
+        fsExtra.ensureDirSync(targetNodeModules);
+    }
+
+    for (const resolvedDependency of targetPackages) {
+        debug(`copy ${resolvedDependency.sourceDir} -> ${resolvedDependency.targetDir}`);
+        if (options.verbose) {
+            console.error(`copy-production-deps: ${resolvedDependency.sourceDir} -> ${resolvedDependency.targetDir}`);
+        }
+        if (!options.dryRun) {
+            fsExtra.ensureDirSync(resolvedDependency.targetDir);
+        }
+        await fsExtra.copy(resolvedDependency.sourceDir + "/", resolvedDependency.targetDir + "/", {
+            recursive: true,
+            filter: (src: string, dest: string) => {
+                const verdict = true && !options.dryRun;
+                debug("filter", src, dest, verdict);
+                return verdict;
+            }
+        });
+    }
 }

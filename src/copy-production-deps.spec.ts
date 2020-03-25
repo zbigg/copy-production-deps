@@ -1,7 +1,31 @@
 import { assert } from "chai";
-import { processPackage, assignTargetDirs, SourcePackage, ResolvedPackage, relative } from "./copy-production-deps";
+import {
+    processPackage,
+    assignTargetDirs,
+    SourcePackage,
+    ResolvedPackage,
+    copyProductionDeps,
+    Dependency
+} from "./copy-production-deps";
 import mockFs from "mock-fs";
 import _ from "lodash";
+import * as path from "path";
+import * as fs from "fs";
+
+function assertPackageExists(context: string, pkg: Dependency) {
+    const packageFolder = path.join(context, "node_modules", pkg.name);
+
+    assert.isTrue(fs.existsSync(packageFolder), `'${packageFolder}' exists`);
+    assert.isTrue(fs.statSync(packageFolder).isDirectory(), `'${packageFolder}' is directory`);
+    const packageJsonPath = path.join(packageFolder, "package.json");
+
+    assert.isTrue(fs.existsSync(packageJsonPath), `'${packageFolder}' exists`);
+    assert.isTrue(fs.statSync(packageJsonPath).isFile(), `'${packageFolder}' is file`);
+
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+    assert.equal(packageJson.name, pkg.name);
+    assert.equal(packageJson.version, pkg.version);
+}
 
 describe("copy-production-deps", function() {
     describe("use case #1 - simple transitive dependency", function() {
@@ -117,6 +141,13 @@ describe("copy-production-deps", function() {
                 targetDir: "THE-TARGET/node_modules/d"
             });
         });
+        it("#copyProductionDeps copies files to proper places", async function() {
+            await copyProductionDeps("foopath", "dist/");
+
+            assertPackageExists("./dist", { name: "a", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "b", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "c", version: "1.0.0" });
+        });
     });
     describe("use case #2 - yarn-workspace like module with messed dependencies", function() {
         before(function() {
@@ -138,7 +169,7 @@ describe("copy-production-deps", function() {
                         node_modules: {
                             b: {
                                 "package.json": JSON.stringify({
-                                    name: "a",
+                                    name: "b",
                                     version: "0.1.0"
                                 })
                             },
@@ -271,6 +302,15 @@ describe("copy-production-deps", function() {
                 sourceDir: "workspaceRoot/node_modules/x",
                 targetDir: "THE-TARGET/node_modules/x"
             });
+        });
+        it("#copyProductionDeps copies files to proper places", async function() {
+            await copyProductionDeps("workspaceRoot/foo-backend", "dist/");
+
+            assertPackageExists("./dist", { name: "a", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "b", version: "0.1.0" });
+            assertPackageExists("./dist", { name: "c", version: "2.0.0" });
+            assertPackageExists("./dist", { name: "d", version: "1.0.0" });
+            assertPackageExists("./dist/node_modules/a", { name: "b", version: "1.0.0" });
         });
     });
 });
