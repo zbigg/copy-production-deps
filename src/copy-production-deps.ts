@@ -16,26 +16,27 @@ let errors = 0;
 
 const rootDir = path.dirname(process.cwd());
 
-function absolute(p: string) {
+export function absolute(p: string) {
     return path.resolve(process.cwd(), p);
 }
-function relative(p: string) {
+
+export function relative(p: string) {
     return p === "." ? p : path.relative(process.cwd(), p);
 }
 
-interface Dependency {
+export interface Dependency {
     name: string;
     version: string;
 }
 
-interface SourcePackage extends Dependency {
+export interface SourcePackage extends Dependency {
     level: number;
     sourceDir: string;
     deps: SourcePackage[];
     users: SourcePackage[];
 }
 
-interface ResolvedPackage extends SourcePackage {
+export interface ResolvedPackage extends SourcePackage {
     targetDir: string;
     parent?: ResolvedPackage | undefined;
 }
@@ -53,6 +54,10 @@ function isResolvable(targetPackage: ResolvedPackage, user: ResolvedPackage): bo
     //     )} x ${relative(userTargetAbsolute)} -> ${result}`
     // );
     return result;
+}
+
+function loadJsonSync(filePath: string) {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
 
 /**
@@ -112,7 +117,7 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
             let candidatePath = relative(path.join(searchPackageDir, "node_modules", name));
             const candidatePackageJsonPath = relative(path.join(candidatePath, "package.json"));
             if (fs.existsSync(candidatePackageJsonPath)) {
-                const candidatePackageJson = require(absolute(candidatePackageJsonPath));
+                const candidatePackageJson = loadJsonSync(absolute(candidatePackageJsonPath));
                 const candidateVersion: string = candidatePackageJson.version;
                 if (!semver.valid(version) || semver.satisfies(candidateVersion, version)) {
                     const newDep = addPackage(
@@ -148,9 +153,9 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
     }
 }
 
-function processPackage(pkg: SourcePackage, context: SourcePackage[]) {
+export function processPackage(pkg: SourcePackage, context: SourcePackage[]) {
     const packageJsonPath = absolute(path.join(pkg.sourceDir, "package.json"));
-    const packageJson = require(packageJsonPath);
+    const packageJson = loadJsonSync(packageJsonPath);
     const localDependencies = Object.keys(packageJson.dependencies || {}).map(name => {
         return {
             name,
@@ -175,7 +180,7 @@ function processPackage(pkg: SourcePackage, context: SourcePackage[]) {
 //     return bestVersion;
 // }
 
-function assignTargetDirs(allPackages: SourcePackage[], rootPkg: ResolvedPackage): ResolvedPackage[] {
+export function assignTargetDirs(allPackages: SourcePackage[], rootPkg: ResolvedPackage): ResolvedPackage[] {
     const byName: Map<string, SourcePackage[]> = new Map();
     for (const dr of allPackages) {
         const packageResults = byName.get(dr.name);
@@ -254,46 +259,3 @@ function assignTargetDirs(allPackages: SourcePackage[], rootPkg: ResolvedPackage
     }
     return result;
 }
-
-async function main() {
-    if ((process.stdout as any)._handle) (process.stdout as any)._handle.setBlocking(true);
-
-    const packageDir = process.argv[2] || ".";
-    const distDir = process.argv[3] || path.join(process.cwd(), "dist");
-    const context: SourcePackage[] = [];
-    const rootDep: ResolvedPackage = {
-        sourceDir: packageDir,
-        name: "root",
-        version: "n/a",
-        users: [],
-        deps: [],
-        targetDir: distDir,
-        level: 0
-    };
-    processPackage(rootDep, context);
-
-    const packages = assignTargetDirs(context, rootDep);
-
-    console.log("$ copy-production-deps: found packages");
-    for (const d of packages) {
-        console.log(`${d.name}@${d.version} [${d.level}] from ${d.sourceDir} -> ${relative(d.targetDir)}`);
-    }
-
-    /*
-    if (errors === 0) {
-        // await emptyDirSync(distDir);
-        for (const dependencyPath of paths) {
-            const dependencyDistPath = path.join(distDir, path.basename(dependencyPath));
-            console.log(`${dependencyPath} -> ${dependencyDistPath}`);
-            // await removeSync(dependencyDistPath);
-            // await copy(dependencyPath + "/", dependencyDistPath + "/");
-        }
-    }
-    */
-    process.exit(errors === 0 ? 0 : 1);
-}
-
-main().catch(error => {
-    console.error(`copy-production-deps: failed: ${error}`, error);
-    process.exit(2);
-});

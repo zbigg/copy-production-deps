@@ -1,13 +1,14 @@
 {
     "name": "copy-production-deps",
     "version": "0.1.0",
-    "description": "Create Production node_modules from Npm/Yarn workspace",
+    "description": "Create production node_modules from Npm/Yarn workspace",
     "bin": "lib/copy-production-deps.js",
     "repository": "https://github.com/zbigg/copy-production-deps",
     "author": "Zbigniew Zagórski <z.zagorski@gmail.com>",
     "license": "MIT",
     "files": [
-        "lib/copy-production-deps.js"
+        "lib/copy-production-deps.js",
+        "lib/cli.js"
     ],
     "scripts": {
         "build": "tsc",
