@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { SourcePackage, relative, copyProductionDeps, CopyProductionDepsOptions } from "./copy-production-deps";
 import * as path from "path";
 import yargs from "yargs";
