@@ -1,6 +1,6 @@
 module.exports = {
     diff: true,
-    extension: ["js", "ts"],
+    extension: ["ts"],
     spec: [
         "./src/**/*.spec.ts"
     ],

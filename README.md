@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/copy-production-deps.svg?style=flat-square)](http://www.npmjs.com/package/copy-production-deps)
 [![Build status](https://travis-ci.org/zbigg/copy-production-deps.svg?branch=master)](https://travis-ci.org/zbigg/copy-production-deps)
+[![codecov](https://codecov.io/gh/zbigg/copy-production-deps/branch/master/graph/badge.svg)](https://codecov.io/gh/zbigg/copy-production-deps)
 
 Find and copy production deps of `package` living in `yarn workspace` to `dist folder`.
 

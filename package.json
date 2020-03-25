@@ -15,7 +15,8 @@
         "build": "tsc",
         "prepare": "tsc",
         "test": "mocha --forbid-only",
-        "cov-test": "nyc mocha"
+        "cov-test": "nyc mocha ",
+        "codecov": "nyc report --reporter=json && ls -al coverage/ && codecov -f coverage/*.json"
     },
     "devDependencies": {
         "@types/chai": "^4.2.11",
@@ -28,6 +29,7 @@
         "@types/semver": "^7.1.0",
         "@types/yargs": "^15.0.4",
         "chai": "^4.2.0",
+        "codecov": "^3.6.5",
         "mocha": "^7.1.1",
         "mock-fs": "^4.11.0",
         "nyc": "^15.0.0",
@@ -41,5 +43,19 @@
         "lodash": "^4.17.15",
         "semver": "^7.1.3",
         "yargs": "^15.3.1"
+    },
+    "nyc": {
+        "extension": [
+            ".ts",
+            ".tsx"
+        ],
+        "exclude": [
+            "**/*.spec.ts",
+            "**/*.d.ts",
+            ".mocharc.js"
+        ],
+        "reporter": [
+            "text"
+        ]
     }
 }

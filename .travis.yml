@@ -1,12 +1,13 @@
 os:
-  - linux
+    - linux
 
 cache: yarn
 language: node_js
 
 node_js:
-  - "10"
-  - "12"
+    - "10"
+    - "13"
 
 script:
-  - yarn cov-test
+    - yarn cov-test
+    - yarn run codecov
