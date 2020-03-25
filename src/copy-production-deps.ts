@@ -44,8 +44,7 @@ interface ResolvedPackage extends SourcePackage {
  * Check if `targetPackage` is resolvable from context of `user` package.
  */
 function isResolvable(targetPackage: ResolvedPackage, user: ResolvedPackage): boolean {
-    const targetPackageResolvableRootAbsolute =
-        absolute(path.dirname(path.dirname(targetPackage.targetDir))) + "/";
+    const targetPackageResolvableRootAbsolute = absolute(path.dirname(path.dirname(targetPackage.targetDir))) + "/";
     const userTargetAbsolute = absolute(user.targetDir) + "/";
     const result = userTargetAbsolute.startsWith(targetPackageResolvableRootAbsolute);
     // console.log(
@@ -100,11 +99,7 @@ function addPackage(
  * Fills `context` and respective `pkg.deps` thus creating linked tree of packages starting with
  * `pkg`.
  */
-function lookForDependenciesInWorkspace(
-    pkg: SourcePackage,
-    dependencies: Dependency[],
-    context: SourcePackage[]
-) {
+function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Dependency[], context: SourcePackage[]) {
     const subPackages: SourcePackage[] = [];
     for (const { name, version } of dependencies) {
         // Start from sourcePackageDir/node_modules and look for deps, they should be there or
@@ -180,10 +175,7 @@ function processPackage(pkg: SourcePackage, context: SourcePackage[]) {
 //     return bestVersion;
 // }
 
-function assignTargetDirs(
-    allPackages: SourcePackage[],
-    rootPkg: ResolvedPackage
-): ResolvedPackage[] {
+function assignTargetDirs(allPackages: SourcePackage[], rootPkg: ResolvedPackage): ResolvedPackage[] {
     const byName: Map<string, SourcePackage[]> = new Map();
     for (const dr of allPackages) {
         const packageResults = byName.get(dr.name);
@@ -236,10 +228,7 @@ function assignTargetDirs(
             };
         }
     };
-    const packagesToResolve: [SourcePackage, ResolvedPackage][] = rootPkg.deps.map(d => [
-        d,
-        rootPkg
-    ]);
+    const packagesToResolve: [SourcePackage, ResolvedPackage][] = rootPkg.deps.map(d => [d, rootPkg]);
     const allResolved: Set<ResolvedPackage> = new Set();
     const getResolved = (pkg: SourcePackage, user: ResolvedPackage): ResolvedPackage => {
         let r = depToResolved.get(pkg);
@@ -287,9 +276,7 @@ async function main() {
 
     console.log("$ copy-production-deps: found packages");
     for (const d of packages) {
-        console.log(
-            `${d.name}@${d.version} [${d.level}] from ${d.sourceDir} -> ${relative(d.targetDir)}`
-        );
+        console.log(`${d.name}@${d.version} [${d.level}] from ${d.sourceDir} -> ${relative(d.targetDir)}`);
     }
 
     /*

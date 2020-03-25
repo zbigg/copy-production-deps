@@ -1,0 +1,7 @@
+lib/*.js
+lib/*.d.ts
+.rpt2_cache/
+node_modules/
+.nyc_output/
+coverage.
+copy-production-deps*.tgz

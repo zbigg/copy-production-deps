@@ -1,0 +1,18 @@
+os:
+  - linux
+  - osx
+
+addons:
+  chrome: stable
+  firefox: latest
+
+env:
+  - DETECT_CHROMEDRIVER_VERSION=true
+
+language: node_js
+
+node_js:
+  - "10"
+  - "12"
+
+

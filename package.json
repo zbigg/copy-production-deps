@@ -1,0 +1,35 @@
+{
+    "name": "copy-production-deps",
+    "version": "0.1.0",
+    "description": "Create Production node_modules from Npm/Yarn workspace",
+    "bin": "lib/copy-production-deps.js",
+    "repository": "https://github.com/zbigg/copy-production-deps",
+    "author": "Zbigniew Zagórski <z.zagorski@gmail.com>",
+    "license": "MIT",
+    "files": [
+        "lib/copy-production-deps.js"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "prepare": "tsc",
+        "test": "mocha --forbid-only"
+    },
+    "devDependencies": {
+        "@types/chai": "^4.2.11",
+        "@types/lodash": "^4.14.149",
+        "@types/mocha": "^7.0.2",
+        "@types/mock-fs": "^4.10.0",
+        "@types/node": "^12.12.31",
+        "@types/semver": "^7.1.0",
+        "chai": "^4.2.0",
+        "mocha": "^7.1.1",
+        "mock-fs": "^4.11.0",
+        "prettier": "^2.0.2",
+        "ts-node": "^8.8.1",
+        "typescript": "^3.8.3"
+    },
+    "dependencies": {
+        "lodash": "^4.17.15",
+        "semver": "^7.1.3"
+    }
+}
