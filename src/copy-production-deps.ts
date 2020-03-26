@@ -175,7 +175,7 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
 export function processPackage(pkg: SourcePackage, context: Context) {
     const packageJsonPath = absolute(path.join(pkg.sourceDir, "package.json"));
     const packageJson = loadJsonSync(packageJsonPath);
-    const localDependencies = Object.keys(packageJson.dependencies || {}).map(name => {
+    const localDependencies = Object.keys(packageJson.dependencies || {}).map((name) => {
         return {
             name,
             version: packageJson.dependencies[name]
@@ -225,7 +225,7 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
         } else {
             // Search if there are other resolved ones with same version
             // up there in tree
-            const resolvedVersions = allVersionsOfMe.map(p => p !== pkg && depToResolved.get(p));
+            const resolvedVersions = allVersionsOfMe.map((p) => p !== pkg && depToResolved.get(p));
             for (const otherResolved of resolvedVersions) {
                 if (!otherResolved) {
                     continue;
@@ -252,7 +252,7 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
             };
         }
     };
-    const packagesToResolve: [SourcePackage, ResolvedPackage][] = rootPkg.deps.map(d => [d, rootPkg]);
+    const packagesToResolve: [SourcePackage, ResolvedPackage][] = rootPkg.deps.map((d) => [d, rootPkg]);
     const allResolved: Set<ResolvedPackage> = new Set();
     const getResolved = (pkg: SourcePackage, user: ResolvedPackage): ResolvedPackage => {
         let r = depToResolved.get(pkg);
@@ -323,8 +323,9 @@ export async function copyProductionDeps(
     }
 
     for (const resolvedDependency of targetPackages) {
-        const skipDep = options.excludePaths ? options.excludePaths(resolvedDependency.sourceDir) : false;
-        debug("filter", resolvedDependency.sourceDir, !skipDep);
+        const sourceDirAbs = absolute(resolvedDependency.sourceDir);
+        const skipDep = options.excludePaths ? options.excludePaths(sourceDirAbs) : false;
+        debug("filter", sourceDirAbs, !skipDep);
         if (skipDep) {
             continue;
         }
@@ -335,10 +336,13 @@ export async function copyProductionDeps(
         if (!options.dryRun) {
             fsExtra.ensureDirSync(resolvedDependency.targetDir);
         }
-        await fsExtra.copy(resolvedDependency.sourceDir + "/", resolvedDependency.targetDir + "/", {
+        // We build new `node_modules` tree. No need to copy existing ones.
+        const thisPackagenodeModules = path.join(sourceDirAbs, "node_modules");
+        await fsExtra.copy(sourceDirAbs + '/', resolvedDependency.targetDir + "/", {
             recursive: true,
-            filter: (src: string, dest: string) => {
-                const verdict = options.excludePaths ? !options.excludePaths(src) : true;
+            filter: (src: string) => {
+                const verdict =
+                    src === thisPackagenodeModules ? false : options.excludePaths ? !options.excludePaths(src) : true;
                 debug("filter", src, verdict);
                 return verdict && !options.dryRun;
             }
