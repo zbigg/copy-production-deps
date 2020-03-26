@@ -33,11 +33,15 @@ Positionals:
               ${distDir}/node_modules)                       [default: "./dist"]
 
 Options:
-  --version      Show version number                                   [boolean]
-  --dryRun, -n   Dry run - only show what would be copied.
+  --version       Show version number                                  [boolean]
+  --dryRun, -n    Dry run - only show what would be copied.
                                                       [boolean] [default: false]
-  --verbose, -v  Run with verbose logging             [boolean] [default: false]
-  --help         Show help                                             [boolean]
+  --verbose, -v   Run with verbose logging            [boolean] [default: false]
+  --exclude-from  Read ecluded file patterns from file one pattern a line.
+                                                           [array] [default: []]
+  --exclude       Exclude file pattern (minimatch glob)    [array] [default: []]
+  --help          Show help                                            [boolean]
+
 
 ```
 
