@@ -6,12 +6,30 @@ import * as fs from "fs";
 import yargs from "yargs";
 import minimatch from "minimatch";
 
-async function main() {
+import debugFactory from "debug";
+const debug = debugFactory("copy-production-deps");
+
+async function asyncCommand(code: () => void) {
+    try {
+        await code();
+        process.exit(0);
+    } catch (error) {
+        console.error(`copy-production-deps: failed: ${error}`, error);
+        if (Array.isArray(error.badPackages)) {
+            for (const badPackage of error.badPackages) {
+                const users = badPackage.users.map((u: SourcePackage) => relative(u.sourceDir)).join(", ");
+                console.error(`${badPackage.name}@${badPackage.version} not found as needed by ${users}`);
+            }
+        }
+        process.exit(2);
+    }
+}
+
+function main() {
     if ((process.stdout as any)._handle) (process.stdout as any)._handle.setBlocking(true);
 
     yargs
         .scriptName("copy-production-deps")
-        //.usage("Usage: $0 <srcDir> <distDir>")
         .option("dryRun", {
             alias: "n",
             type: "boolean",
@@ -50,46 +68,37 @@ async function main() {
                         default: "./dist"
                     });
             },
-            (argv) => {
-                const packageDir = path.resolve(process.cwd(), argv.packageDir);
-                const distDir = path.resolve(process.cwd(), argv.distDir);
-                let copyFilters: Array<(src: string) => boolean> = [];
-                const allExcludedGlobs = [...argv.exclude];
-                for (const excludeFrom of argv["exclude-from"]) {
-                    const lines = fs
-                        .readFileSync(excludeFrom, "utf-8")
-                        .split("\n")
-                        .filter((line) => line && !line.startsWith("#"));
-                    allExcludedGlobs.push(...lines);
-                }
-                const excludeFilterOptions: minimatch.IOptions = { matchBase: true };
-                for (const excludedGlob of argv.exclude) {
-                    copyFilters.push((minimatch.filter(excludedGlob, excludeFilterOptions) as unknown) as any);
-                }
-                const excludePaths =
-                    copyFilters.length > 0
-                        ? (src: string) => copyFilters.reduce((r, filter) => r || filter(src), false)
-                        : undefined;
-                const options: CopyProductionDepsOptions = {
-                    dryRun: argv.dryRun,
-                    verbose: argv.verbose,
-                    excludePaths: excludePaths
-                };
-                copyProductionDeps(packageDir, distDir, options);
-            }
+            (argv) =>
+                asyncCommand(async () => {
+                    const packageDir = path.resolve(process.cwd(), argv.packageDir);
+                    const distDir = path.resolve(process.cwd(), argv.distDir);
+                    let copyFilters: Array<(src: string) => boolean> = [];
+                    const allExcludedGlobs = [...argv.exclude];
+                    for (const excludeFrom of argv["exclude-from"]) {
+                        const lines = fs
+                            .readFileSync(excludeFrom, "utf-8")
+                            .split("\n")
+                            .filter((line) => line && !line.startsWith("#"));
+                        allExcludedGlobs.push(...lines);
+                    }
+                    const excludeFilterOptions: minimatch.IOptions = { matchBase: true };
+                    for (const excludedGlob of allExcludedGlobs) {
+                        debug("will filter", excludedGlob);
+                        copyFilters.push((minimatch.filter(excludedGlob, excludeFilterOptions) as unknown) as any);
+                    }
+                    const excludePaths =
+                        copyFilters.length > 0
+                            ? (src: string) => copyFilters.reduce((r, filter) => r || filter(src), false)
+                            : undefined;
+                    const options: CopyProductionDepsOptions = {
+                        dryRun: argv.dryRun,
+                        verbose: argv.verbose,
+                        excludePaths: excludePaths
+                    };
+                    await copyProductionDeps(packageDir, distDir, options);
+                })
         )
-
-        .demandCommand()
         .help().argv;
 }
 
-main().catch((error) => {
-    console.error(`copy-production-deps: failed: ${error}`, error);
-    if (Array.isArray(error.badPackages)) {
-        for (const badPackage of error.badPackages) {
-            const users = badPackage.users.map((u: SourcePackage) => relative(u.sourceDir)).join(", ");
-            console.error(`${badPackage.name}@${badPackage.version} not found as needed by ${users}`);
-        }
-    }
-    process.exit(2);
-});
+main();

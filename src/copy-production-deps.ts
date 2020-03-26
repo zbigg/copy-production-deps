@@ -324,6 +324,7 @@ export async function copyProductionDeps(
 
     for (const resolvedDependency of targetPackages) {
         const skipDep = options.excludePaths ? options.excludePaths(resolvedDependency.sourceDir) : false;
+        debug("filter", resolvedDependency.sourceDir, !skipDep);
         if (skipDep) {
             continue;
         }
@@ -338,7 +339,7 @@ export async function copyProductionDeps(
             recursive: true,
             filter: (src: string, dest: string) => {
                 const verdict = options.excludePaths ? !options.excludePaths(src) : true;
-                debug("filter", src, dest, verdict);
+                debug("filter", src, verdict);
                 return verdict && !options.dryRun;
             }
         });
