@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 
-import { SourcePackage, relative, copyProductionDeps, CopyProductionDepsOptions } from "./copy-production-deps";
+import {
+    SourcePackage,
+    relative,
+    copyProductionDeps,
+    CopyProductionDepsOptions,
+    parseBasicPatternList,
+    globListFilter
+} from "./copy-production-deps";
 import * as path from "path";
 import * as fs from "fs";
 import yargs from "yargs";
-import minimatch from "minimatch";
-
-import debugFactory from "debug";
-const debug = debugFactory("copy-production-deps");
 
 async function asyncCommand(code: () => void) {
     try {
@@ -72,24 +75,12 @@ function main() {
                 asyncCommand(async () => {
                     const packageDir = path.resolve(process.cwd(), argv.packageDir);
                     const distDir = path.resolve(process.cwd(), argv.distDir);
-                    let copyFilters: Array<(src: string) => boolean> = [];
                     const allExcludedGlobs = [...argv.exclude];
                     for (const excludeFrom of argv["exclude-from"]) {
-                        const lines = fs
-                            .readFileSync(excludeFrom, "utf-8")
-                            .split("\n")
-                            .filter((line) => line && !line.startsWith("#"));
+                        const lines = parseBasicPatternList(fs.readFileSync(excludeFrom, "utf-8"));
                         allExcludedGlobs.push(...lines);
                     }
-                    const excludeFilterOptions: minimatch.IOptions = { matchBase: true };
-                    for (const excludedGlob of allExcludedGlobs) {
-                        debug("will filter", excludedGlob);
-                        copyFilters.push((minimatch.filter(excludedGlob, excludeFilterOptions) as unknown) as any);
-                    }
-                    const excludePaths =
-                        copyFilters.length > 0
-                            ? (src: string) => copyFilters.reduce((r, filter) => r || filter(src), false)
-                            : undefined;
+                    const excludePaths = allExcludedGlobs.length > 0 ? globListFilter(allExcludedGlobs) : undefined;
                     const options: CopyProductionDepsOptions = {
                         dryRun: argv.dryRun,
                         verbose: argv.verbose,

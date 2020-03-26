@@ -13,6 +13,7 @@ import semver from "semver";
 import _ from "lodash";
 import fsExtra from "fs-extra";
 import debugFactory from "debug";
+import minimatch from "minimatch";
 const debug = debugFactory("copy-production-deps");
 
 const rootDir = path.dirname(process.cwd());
@@ -75,6 +76,10 @@ function isResolvable(targetPackage: ResolvedPackage, user: ResolvedPackage): bo
 function loadJsonSync(filePath: string) {
     return JSON.parse(fs.readFileSync(filePath, "utf-8"));
 }
+
+// async function loadJson(filePath: string) {
+//     return JSON.parse(await fs.promises.readFile(filePath, "utf-8"));
+// }
 
 /**
  * Add `SourcePackage` to `context` preventing duplicates.
@@ -285,12 +290,92 @@ export interface CopyProductionDepsOptions {
     excludePaths?: (srcFileName: string) => boolean;
 }
 
+export function parseBasicPatternList(text: string): string[] {
+    return text
+        .split("\n")
+        .map((text) => text.trim())
+        .filter((line) => line && !line.startsWith("#"));
+}
+
+// source: https://docs.npmjs.com/using-npm/developers.html
+const defaultNpmIngnorePatterns = [
+    "node_modules",
+    ".npmignore",
+    "._*",
+    ".DS_Store",
+    ".git",
+    ".hg",
+    ".npmrc",
+    ".lock-wscript",
+    ".svn",
+    ".wafpickle-*",
+    "config.gypi",
+    "CVS",
+    "npm-debug.log",
+    ".*.swp"
+];
+
+// const defaultNpmAlwaysIncludePattens = ["package.json", "LICENSE*", "README*"];
+
+const globFilterOptions: minimatch.IOptions = { matchBase: true };
+
+/**
+ * Creates filter function that returnes `true` if any of filter matches
+ */
+export function globListFilter(patterns: string[]): (src: string) => boolean {
+    const filters = patterns.map((pattern) => minimatch.filter(pattern, globFilterOptions) as (src: string) => boolean);
+    return (src: string) => filters.reduce((r, filter) => r || filter(src), false);
+}
+
+/**
+ * Return filter for files in specific package.
+ *
+ * This filter returns `true` for files that should be in dist package and `false` for ignored
+ * (or not explicitly listed files).
+ */
+export async function getPackageSpecificFilter(pkg: ResolvedPackage): Promise<(src: string) => boolean> {
+    // const packageJson = await loadJson(path.join(pkg.sourceDir, "package.json"));
+    const packageNpmIgnore = path.join(pkg.sourceDir, ".npmignore");
+
+    let npmIgnorePatterns = defaultNpmIngnorePatterns;
+    // let npmIncludePaths = defaultNpmAlwaysIncludePattens;
+    if (fs.existsSync(packageNpmIgnore)) {
+        npmIgnorePatterns = [
+            ...npmIgnorePatterns,
+            ...parseBasicPatternList(await fs.promises.readFile(packageNpmIgnore, "utf-8"))
+        ];
+    }
+    let hasExplicitFileList = false;
+    // if (Array.isArray(packageJson.files) && packageJson.files.length > 0) {
+    //     hasExplicitFileList = true;
+    //     npmIncludePaths = [...npmIncludePaths, ...packageJson.files];
+    // }
+
+    const ignoreFilter = globListFilter(npmIgnorePatterns);
+    //const includeFilter = globListFilter(npmIncludePaths);
+
+    return (packagePath) => {
+        if (packagePath === "" || packagePath === ".") {
+            return true;
+        }
+
+        // if (includeFilter(packagePath)) {
+        //     return true;
+        // }
+
+        if (ignoreFilter(packagePath)) {
+            return false;
+        }
+        return hasExplicitFileList === false;
+    };
+}
+
 export async function copyProductionDeps(
     sourceDir: string,
     targetDir: string,
     options: CopyProductionDepsOptions = {}
 ): Promise<ResolvedPackage[]> {
-    const context: SourcePackage[] = [];
+    const context: Context = [];
     const rootDep: ResolvedPackage = {
         sourceDir: sourceDir,
         name: "root",
@@ -336,14 +421,14 @@ export async function copyProductionDeps(
         if (!options.dryRun) {
             fsExtra.ensureDirSync(resolvedDependency.targetDir);
         }
-        // We build new `node_modules` tree. No need to copy existing ones.
-        const thisPackagenodeModules = path.join(sourceDirAbs, "node_modules");
-        await fsExtra.copy(sourceDirAbs + '/', resolvedDependency.targetDir + "/", {
+        const packageFilter = await getPackageSpecificFilter(resolvedDependency);
+        await fsExtra.copy(sourceDirAbs + "/", resolvedDependency.targetDir + "/", {
             recursive: true,
-            filter: (src: string) => {
-                const verdict =
-                    src === thisPackagenodeModules ? false : options.excludePaths ? !options.excludePaths(src) : true;
-                debug("filter", src, verdict);
+            filter: (absolutePath: string) => {
+                const packagePath = absolutePath.substr(sourceDirAbs.length + 1);
+                let verdict = packageFilter(packagePath);
+                verdict = verdict && (options.excludePaths ? !options.excludePaths(absolutePath) : true);
+                debug("filter", absolutePath, verdict);
                 return verdict && !options.dryRun;
             }
         });
