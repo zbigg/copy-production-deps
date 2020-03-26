@@ -7,6 +7,9 @@
     "author": "Zbigniew Zagórski <z.zagorski@gmail.com>",
     "license": "MIT",
     "main": "lib/copy-production-deps.js",
+    "engines": {
+        "node": ">=10"
+    },
     "files": [
         "lib/copy-production-deps.js",
         "lib/cli.js"
