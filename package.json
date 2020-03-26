@@ -1,6 +1,6 @@
 {
     "name": "copy-production-deps",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "Create production node_modules from Npm/Yarn workspace",
     "bin": "lib/cli.js",
     "repository": "https://github.com/zbigg/copy-production-deps",
