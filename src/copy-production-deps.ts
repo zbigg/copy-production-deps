@@ -190,20 +190,6 @@ export function processPackage(pkg: SourcePackage, context: Context) {
     lookForDependenciesInWorkspace(pkg, localDependencies, context);
 }
 
-// function mostUsedVersion(allVersionsOfPkg: DepResult[]): string | undefined {
-//     const versionCounts = _.countBy(allVersionsOfPkg, "version");
-//     const sortedVersions = _.sortBy(Object.keys(versionCounts), k => -versionCounts[k]);
-//     const bestVersion =
-//         sortedVersions.length > 1 &&
-//         versionCounts[sortedVersions[0]] !== versionCounts[sortedVersions[1]]
-//             ? sortedVersions[0]
-//             : undefined;
-//     console.log(
-//         `${allVersionsOfPkg[0].name} best version ${bestVersion} - ${JSON.stringify(versionCounts)}`
-//     );
-//     return bestVersion;
-// }
-
 export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage): ResolvedPackage[] {
     const byName: Map<string, SourcePackage[]> = new Map();
     for (const dr of allPackages.filter(isProperSourcePackage)) {
@@ -213,38 +199,44 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
         } else {
             packageResults.push(dr);
         }
+        debug(`found ${relative(dr.sourceDir)} used by ${dr.users.map((u) => relative(u.sourceDir)).join(", ")}`);
     }
     const depToResolved: Map<SourcePackage, ResolvedPackage> = new Map();
     const result: ResolvedPackage[] = [];
+    const targetDirs: Map<string, Map<string, ResolvedPackage>> = new Map();
+
+    const rootNodeModules = path.join(rootPkg.targetDir, "node_modules");
 
     const resolve = (pkg: SourcePackage, user: ResolvedPackage): ResolvedPackage => {
         const allVersionsOfMe = byName.get(pkg.name)!;
         const imTheOnlyOne = allVersionsOfMe.length === 1;
         const usedByRoot = pkg.users.includes(rootPkg);
         if (imTheOnlyOne || usedByRoot) {
-            const targetDir = path.join(rootPkg.targetDir, "node_modules", pkg.name);
+            const targetDir = path.join(rootNodeModules, pkg.name);
             return {
                 ...pkg,
                 targetDir
             };
-        } else {
-            // Search if there are other resolved ones with same version
-            // up there in tree
-            const resolvedVersions = allVersionsOfMe.map((p) => p !== pkg && depToResolved.get(p));
-            for (const otherResolved of resolvedVersions) {
-                if (!otherResolved) {
-                    continue;
-                }
-                if (otherResolved.version === pkg.version && isResolvable(otherResolved, user)) {
-                    // console.log(
-                    //     `${pkg.name}@${pkg.version} for ${relative(
-                    //         user.targetDir
-                    //     )} reuses ${relative(otherResolved.targetDir)}`
-                    // );
-                    return otherResolved;
-                }
+        }
+
+        // Search if there are other resolved ones with same version
+        // up there in tree
+        const resolvedVersions = allVersionsOfMe.map((p) => p !== pkg && depToResolved.get(p));
+        for (const otherResolved of resolvedVersions) {
+            if (!otherResolved) {
+                continue;
             }
-            // not the only one and not used by root
+            if (otherResolved.version === pkg.version && isResolvable(otherResolved, user)) {
+                // console.log(
+                //     `${pkg.name}@${pkg.version} for ${relative(
+                //         user.targetDir
+                //     )} reuses ${relative(otherResolved.targetDir)}`
+                // );
+                return otherResolved;
+            }
+        }
+
+        if (pkg.users.length === 1) {
             const targetDir = path.join(user.targetDir, "node_modules", pkg.name);
             // console.log(
             //     `${pkg.name}@${pkg.version} ${pkg.sourceDir} ${pkg.users
@@ -256,6 +248,42 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
                 targetDir
             };
         }
+        // not the only one and not used by root
+        const startNodeModules = path.join(user.targetDir, "node_modules");
+        let previousTargetDir: string | undefined;
+        let currentNodeModules = startNodeModules;
+        while (true) {
+            let currentTargetDir = path.join(currentNodeModules, pkg.name);
+            if (previousTargetDir !== undefined && targetDirs.has(currentTargetDir)) {
+                // we're in invalid position!, we have to step back!
+                return {
+                    ...pkg,
+                    targetDir: previousTargetDir
+                };
+            }
+            const candidate = { ...pkg, targetDir: currentTargetDir };
+            const score = pkg.users.reduce((r, u) => {
+                const ru = depToResolved.get(u);
+                if (!ru) {
+                    return r;
+                }
+                return r + (isResolvable(candidate, ru) ? 1 : 0);
+            }, 0);
+            const perfectScore = score === pkg.users.length;
+            if (perfectScore) {
+                return candidate;
+            }
+            if (currentNodeModules === rootNodeModules) {
+                // we can't find better place, just return candidate
+                return candidate;
+            }
+            previousTargetDir = currentTargetDir;
+            const previousNodeModules = currentNodeModules;
+            currentNodeModules = path.dirname(path.dirname(currentNodeModules));
+            if (previousNodeModules === currentNodeModules) {
+                throw new Error("#assignTargetDirs reached root, report this as bug");
+            }
+        }
     };
     const packagesToResolve: [SourcePackage, ResolvedPackage][] = rootPkg.deps.map((d) => [d, rootPkg]);
     const allResolved: Set<ResolvedPackage> = new Set();
@@ -265,6 +293,14 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
             r = resolve(pkg, user);
             depToResolved.set(pkg, r);
             if (!allResolved.has(r)) {
+                const targetDirMap =
+                    targetDirs.get(r.targetDir) ||
+                    (() => {
+                        const m = new Map();
+                        targetDirs.set(r.targetDir, m);
+                        return m;
+                    })();
+                targetDirMap.set(r.name, r);
                 allResolved.add(r);
                 r.parent = user;
                 result.push(r);

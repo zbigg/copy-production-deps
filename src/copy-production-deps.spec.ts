@@ -27,9 +27,9 @@ function assertPackageExists(context: string, pkg: Dependency) {
     assert.equal(packageJson.version, pkg.version);
 }
 
-describe("copy-production-deps", function() {
-    describe("use case #1 - simple transitive dependency", function() {
-        before(function() {
+describe("copy-production-deps", function () {
+    describe("use case #1 - simple transitive dependency", function () {
+        before(function () {
             mockFs({
                 foopath: {
                     "package.json": JSON.stringify({
@@ -78,7 +78,7 @@ describe("copy-production-deps", function() {
                 }
             });
         });
-        after(function() {
+        after(function () {
             mockFs.restore();
         });
         const context: SourcePackage[] = [];
@@ -91,10 +91,10 @@ describe("copy-production-deps", function() {
             targetDir: "THE-TARGET",
             level: 0
         };
-        it("#processPackage finds all packages", function() {
+        it("#processPackage finds all packages", function () {
             processPackage(rootDep, context);
 
-            const interestingContext = context.map(r => _.pick(r, ["name", "sourceDir"]));
+            const interestingContext = context.map((r) => _.pick(r, ["name", "sourceDir"]));
             assert.includeDeepMembers(interestingContext as any, [
                 {
                     name: "a",
@@ -114,8 +114,8 @@ describe("copy-production-deps", function() {
                 sourceDir: "foopath/node_modules/d"
             });
         });
-        it("#assignTargetDirs emits target folders", function() {
-            const testedPackages = assignTargetDirs(context, rootDep).map(r =>
+        it("#assignTargetDirs emits target folders", function () {
+            const testedPackages = assignTargetDirs(context, rootDep).map((r) =>
                 _.pick(r, ["name", "sourceDir", "targetDir"])
             );
             assert.includeDeepMembers(testedPackages as any, [
@@ -141,7 +141,7 @@ describe("copy-production-deps", function() {
                 targetDir: "THE-TARGET/node_modules/d"
             });
         });
-        it("#copyProductionDeps copies files to proper places", async function() {
+        it("#copyProductionDeps copies files to proper places", async function () {
             await copyProductionDeps("foopath", "dist/");
 
             assertPackageExists("./dist", { name: "a", version: "1.0.0" });
@@ -150,8 +150,8 @@ describe("copy-production-deps", function() {
         });
     });
 
-    describe("use case #2 - yarn-workspace like module with messed dependencies", function() {
-        before(function() {
+    describe("use case #2 - yarn-workspace like module with messed dependencies", function () {
+        before(function () {
             mockFs({
                 workspaceRoot: {
                     "foo-backend": {
@@ -161,7 +161,10 @@ describe("copy-production-deps", function() {
                             dependencies: {
                                 a: "^1.0.0",
                                 b: "^0.1.0",
-                                d: "^1.0.0"
+                                d: "^1.0.0",
+                                r1: "^1.0.0",
+                                r2: "^1.0.0",
+                                r3: "^1.0.0"
                             },
                             devDependencies: {
                                 x: "^1.0.0"
@@ -183,6 +186,47 @@ describe("copy-production-deps", function() {
                             x: {
                                 "package.json": JSON.stringify({
                                     name: "x",
+                                    version: "1.0.0"
+                                })
+                            },
+                            r1: {
+                                "package.json": JSON.stringify({
+                                    name: "r1",
+                                    version: "1.0.0",
+                                    dependencies: {
+                                        s: "1.0.0"
+                                    }
+                                })
+                            },
+                            r2: {
+                                "package.json": JSON.stringify({
+                                    name: "r2",
+                                    version: "1.0.0",
+                                    dependencies: {
+                                        s: "1.0.0"
+                                    }
+                                })
+                            },
+                            r3: {
+                                "package.json": JSON.stringify({
+                                    name: "r3",
+                                    version: "1.0.0",
+                                    dependencies: {
+                                        s: "2.0.0"
+                                    }
+                                }),
+                                node_modules: {
+                                    s: {
+                                        "package.json": JSON.stringify({
+                                            name: "s",
+                                            version: "2.0.0"
+                                        })
+                                    }
+                                }
+                            },
+                            s: {
+                                "package.json": JSON.stringify({
+                                    name: "s",
                                     version: "1.0.0"
                                 })
                             }
@@ -217,7 +261,7 @@ describe("copy-production-deps", function() {
                 }
             });
         });
-        after(function() {
+        after(function () {
             mockFs.restore();
         });
         const context: SourcePackage[] = [];
@@ -230,10 +274,10 @@ describe("copy-production-deps", function() {
             targetDir: "THE-TARGET",
             level: 0
         };
-        it("#processPackage finds all packages", function() {
+        it("#processPackage finds all packages", function () {
             processPackage(rootDep, context);
 
-            const interestingContext = context.map(r => _.pick(r, ["name", "sourceDir", "version"]));
+            const interestingContext = context.map((r) => _.pick(r, ["name", "sourceDir", "version"]));
             assert.includeDeepMembers(interestingContext as any, [
                 {
                     name: "a",
@@ -254,6 +298,16 @@ describe("copy-production-deps", function() {
                     name: "c",
                     sourceDir: "workspaceRoot/node_modules/c",
                     version: "2.0.0"
+                },
+                {
+                    name: "r1",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/r1",
+                    version: "1.0.0"
+                },
+                {
+                    name: "s",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/r3/node_modules/s",
+                    version: "2.0.0"
                 }
             ]);
             assert.notDeepNestedInclude(interestingContext as any, {
@@ -262,8 +316,8 @@ describe("copy-production-deps", function() {
                 version: "1.0.0"
             });
         });
-        it("#assignTargetDirs emits target folders", function() {
-            const testedPackages = assignTargetDirs(context, rootDep).map(r =>
+        it("#assignTargetDirs emits target folders", function () {
+            const testedPackages = assignTargetDirs(context, rootDep).map((r) =>
                 _.pick(r, ["name", "sourceDir", "targetDir", "version"])
             );
             assert.includeDeepMembers(testedPackages as any, [
@@ -298,19 +352,32 @@ describe("copy-production-deps", function() {
                     version: "1.0.0"
                 }
             ]);
+            assert.includeDeepMembers(testedPackages as any, [
+                {
+                    name: "s",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/s",
+                    targetDir: "THE-TARGET/node_modules/s",
+                    version: "1.0.0"
+                }
+            ]);
             assert.notDeepNestedInclude(testedPackages as any, {
                 name: "x",
                 sourceDir: "workspaceRoot/node_modules/x",
                 targetDir: "THE-TARGET/node_modules/x"
             });
         });
-        it("#copyProductionDeps copies files to proper places", async function() {
+        it("#copyProductionDeps copies files to proper places", async function () {
             await copyProductionDeps("workspaceRoot/foo-backend", "dist/");
 
             assertPackageExists("./dist", { name: "a", version: "1.0.0" });
             assertPackageExists("./dist", { name: "b", version: "0.1.0" });
             assertPackageExists("./dist", { name: "c", version: "2.0.0" });
             assertPackageExists("./dist", { name: "d", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "r1", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "r2", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "r3", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "s", version: "1.0.0" });
+            assertPackageExists("./dist/node_modules/r3", { name: "s", version: "2.0.0" });
             assertPackageExists("./dist/node_modules/a", { name: "b", version: "1.0.0" });
         });
     });
