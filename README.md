@@ -6,7 +6,8 @@
 
 Find and copy production deps of `package` living in `yarn workspace` to `dist folder`.
 
-**NOTE: This is very experimental package, use at own risk.**
+**NOTE: This is very experimental package.**, nevertheless it's used in one internal project 
+to build minimal `node_modules` for services running in docker.
 
 ## Usage
 
