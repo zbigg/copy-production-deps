@@ -4,7 +4,7 @@
 [![Build status](https://travis-ci.org/zbigg/copy-production-deps.svg?branch=master)](https://travis-ci.org/zbigg/copy-production-deps)
 [![codecov](https://codecov.io/gh/zbigg/copy-production-deps/branch/master/graph/badge.svg)](https://codecov.io/gh/zbigg/copy-production-deps)
 
-Find and copy production deps of `package` living in `yarn workspace` to `dist folder`.
+Find and copy production deps of `package` living in `yarn workspace` to `dist` folder.
 
 **NOTE: This is very experimental package.**, nevertheless it's used in one internal project 
 to build minimal `node_modules` for services running in docker.
@@ -48,7 +48,7 @@ Options:
 
 ## Why
 
-Born from frustration that both `yarn` and `npm` have several bugs related to `--production` install and i almost wrote everywhere before i found [copy-node-modules](https://github.com/arloliu/copy-node-modules#readme)
+Born from frustration that both `yarn` and `npm` have several bugs related to `--production` install and i almost wrote everywhere before i found [copy-node-modules](https://github.com/arloliu/copy-node-modules#readme) which apparently didn't support yarn workspaces.
 
 ## Contribute
 
