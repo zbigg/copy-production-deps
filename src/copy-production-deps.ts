@@ -149,7 +149,11 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
                         pkg,
                         context
                     );
-                    subPackages.push(newDep);
+
+                    // Only process this package, if we're the first user.
+                    if (newDep.users.length === 1) {
+                        subPackages.push(newDep);
+                    }
                     pkg.deps.push(newDep);
                     break;
                 }
