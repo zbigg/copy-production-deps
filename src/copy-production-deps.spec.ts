@@ -162,9 +162,9 @@ describe("copy-production-deps", function () {
                                 a: "^1.0.0",
                                 b: "^0.1.0",
                                 d: "^1.0.0",
-                                r1: "^1.0.0",
-                                r2: "^1.0.0",
-                                r3: "^1.0.0"
+                                "@org/r1": "^1.0.0",
+                                "@org/r2": "^1.0.0",
+                                "@org/r3": "^1.0.0"
                             },
                             devDependencies: {
                                 x: "^1.0.0"
@@ -189,40 +189,42 @@ describe("copy-production-deps", function () {
                                     version: "1.0.0"
                                 })
                             },
-                            r1: {
-                                "package.json": JSON.stringify({
-                                    name: "r1",
-                                    version: "1.0.0",
-                                    dependencies: {
-                                        s: "1.0.0"
+                            "@org": {
+                                r1: {
+                                    "package.json": JSON.stringify({
+                                        name: "@org/r1",
+                                        version: "1.0.0",
+                                        dependencies: {
+                                            s: "1.0.0"
+                                        }
+                                    })
+                                },
+                                r2: {
+                                    "package.json": JSON.stringify({
+                                        name: "@org/r2",
+                                        version: "1.0.0",
+                                        dependencies: {
+                                            s: "1.0.0"
+                                        }
+                                    })
+                                },
+                                r3: {
+                                    "package.json": JSON.stringify({
+                                        name: "@org/r3",
+                                        version: "1.0.0",
+                                        dependencies: {
+                                            s: "2.0.0"
+                                        }
+                                    }),
+                                    node_modules: {
+                                        s: {
+                                            "package.json": JSON.stringify({
+                                                name: "s",
+                                                version: "2.0.0"
+                                            })
+                                        }
                                     }
-                                })
-                            },
-                            r2: {
-                                "package.json": JSON.stringify({
-                                    name: "r2",
-                                    version: "1.0.0",
-                                    dependencies: {
-                                        s: "1.0.0"
-                                    }
-                                })
-                            },
-                            r3: {
-                                "package.json": JSON.stringify({
-                                    name: "r3",
-                                    version: "1.0.0",
-                                    dependencies: {
-                                        s: "2.0.0"
-                                    }
-                                }),
-                                node_modules: {
-                                    s: {
-                                        "package.json": JSON.stringify({
-                                            name: "s",
-                                            version: "2.0.0"
-                                        })
-                                    }
-                                }
+                                },
                             },
                             s: {
                                 "package.json": JSON.stringify({
@@ -300,13 +302,13 @@ describe("copy-production-deps", function () {
                     version: "2.0.0"
                 },
                 {
-                    name: "r1",
-                    sourceDir: "workspaceRoot/foo-backend/node_modules/r1",
+                    name: "@org/r1",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/@org/r1",
                     version: "1.0.0"
                 },
                 {
                     name: "s",
-                    sourceDir: "workspaceRoot/foo-backend/node_modules/r3/node_modules/s",
+                    sourceDir: "workspaceRoot/foo-backend/node_modules/@org/r3/node_modules/s",
                     version: "2.0.0"
                 }
             ]);
@@ -373,11 +375,11 @@ describe("copy-production-deps", function () {
             assertPackageExists("./dist", { name: "b", version: "0.1.0" });
             assertPackageExists("./dist", { name: "c", version: "2.0.0" });
             assertPackageExists("./dist", { name: "d", version: "1.0.0" });
-            assertPackageExists("./dist", { name: "r1", version: "1.0.0" });
-            assertPackageExists("./dist", { name: "r2", version: "1.0.0" });
-            assertPackageExists("./dist", { name: "r3", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "@org/r1", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "@org/r2", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "@org/r3", version: "1.0.0" });
             assertPackageExists("./dist", { name: "s", version: "1.0.0" });
-            assertPackageExists("./dist/node_modules/r3", { name: "s", version: "2.0.0" });
+            assertPackageExists("./dist/node_modules/@org/r3", { name: "s", version: "2.0.0" });
             assertPackageExists("./dist/node_modules/a", { name: "b", version: "1.0.0" });
         });
     });

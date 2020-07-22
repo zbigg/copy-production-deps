@@ -256,6 +256,7 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
         const startNodeModules = path.join(user.targetDir, "node_modules");
         let previousTargetDir: string | undefined;
         let currentNodeModules = startNodeModules;
+        let currentUser = user;
         while (true) {
             let currentTargetDir = path.join(currentNodeModules, pkg.name);
             if (previousTargetDir !== undefined && targetDirs.has(currentTargetDir)) {
@@ -282,8 +283,13 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
                 return candidate;
             }
             previousTargetDir = currentTargetDir;
+            if (!currentUser.parent) {
+                return candidate;
+            }
+            currentUser = currentUser.parent;
             const previousNodeModules = currentNodeModules;
-            currentNodeModules = path.dirname(path.dirname(currentNodeModules));
+            currentNodeModules = path.join(currentUser.targetDir, "node_modules");
+
             if (previousNodeModules === currentNodeModules) {
                 throw new Error("#assignTargetDirs reached root, report this as bug");
             }
