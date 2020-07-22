@@ -381,4 +381,92 @@ describe("copy-production-deps", function () {
             assertPackageExists("./dist/node_modules/a", { name: "b", version: "1.0.0" });
         });
     });
+
+    describe("support for cycle in dependency tree (#4)", async function () {
+        before(function () {
+            mockFs({
+                foopath: {
+                    "package.json": JSON.stringify({
+                        name: "foo",
+                        version: "0.1.0",
+                        dependencies: {
+                            a: "^1.0.0",
+                            b: "^1.0.0"
+                        }
+                    }),
+                    node_modules: {
+                        a: {
+                            "package.json": JSON.stringify({
+                                name: "a",
+                                version: "1.0.0",
+                                dependencies: {
+                                    b: "^1.0.0"
+                                }
+                            })
+                        },
+                        b: {
+                            "package.json": JSON.stringify({
+                                name: "b",
+                                version: "1.0.0",
+                                dependencies: {
+                                    a: "^1.0.0"
+                                }
+                            })
+                        }
+                    }
+                }
+            });
+        });
+        after(function () {
+            mockFs.restore();
+        });
+        const context: SourcePackage[] = [];
+        const rootDep: ResolvedPackage = {
+            sourceDir: "foopath",
+            name: "root",
+            version: "n/a",
+            users: [],
+            deps: [],
+            targetDir: "THE-TARGET",
+            level: 0
+        };
+        it("#processPackage finds all packages", function () {
+            processPackage(rootDep, context);
+
+            const interestingContext = context.map((r) => _.pick(r, ["name", "sourceDir"]));
+            assert.includeDeepMembers(interestingContext as any, [
+                {
+                    name: "a",
+                    sourceDir: "foopath/node_modules/a"
+                },
+                {
+                    name: "b",
+                    sourceDir: "foopath/node_modules/b"
+                }
+            ]);
+        });
+        it("#assignTargetDirs emits target folders", function () {
+            const testedPackages = assignTargetDirs(context, rootDep).map((r) =>
+                _.pick(r, ["name", "sourceDir", "targetDir"])
+            );
+            assert.includeDeepMembers(testedPackages as any, [
+                {
+                    name: "a",
+                    sourceDir: "foopath/node_modules/a",
+                    targetDir: "THE-TARGET/node_modules/a"
+                },
+                {
+                    name: "b",
+                    sourceDir: "foopath/node_modules/b",
+                    targetDir: "THE-TARGET/node_modules/b"
+                }
+            ]);
+        });
+        it("#copyProductionDeps copies files to proper places", async function () {
+            await copyProductionDeps("foopath", "dist/");
+
+            assertPackageExists("./dist", { name: "a", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "b", version: "1.0.0" });
+        });
+    });
 });
