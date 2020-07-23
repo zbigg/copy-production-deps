@@ -19,7 +19,7 @@
         "prepare": "tsc",
         "test": "mocha --forbid-only",
         "cov-test": "nyc mocha ",
-        "codecov": "nyc report --reporter=json && ls -al coverage/ && codecov -f coverage/*.json"
+        "codecov": "nyc report --reporter=json && ls -al coverage/ && codecov --disable=gcov -f coverage/*.json"
     },
     "devDependencies": {
         "@types/chai": "^4.2.11",
