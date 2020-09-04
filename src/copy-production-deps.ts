@@ -397,8 +397,10 @@ export async function getPackageSpecificFilter(pkg: ResolvedPackage): Promise<(s
     //     npmIncludePaths = [...npmIncludePaths, ...packageJson.files];
     // }
 
-    const ignoreFilter = globListFilter(npmIgnorePatterns.filter(pattern => !pattern.startsWith("!")));
-    const unIgnoreFilter = globListFilter(npmIgnorePatterns.filter(pattern => pattern.startsWith("!")).map(pattern => pattern.substr(1)));
+    const ignoreFilter = globListFilter(npmIgnorePatterns.filter((pattern) => !pattern.startsWith("!")));
+    const unIgnoreFilter = globListFilter(
+        npmIgnorePatterns.filter((pattern) => pattern.startsWith("!")).map((pattern) => pattern.substr(1))
+    );
     //const includeFilter = globListFilter(npmIncludePaths);
 
     return (packagePath) => {
@@ -412,7 +414,6 @@ export async function getPackageSpecificFilter(pkg: ResolvedPackage): Promise<(s
 
         if (ignoreFilter(packagePath)) {
             if (unIgnoreFilter(packagePath)) {
-                console.log("unignoring", packagePath)
                 return true;
             }
             return false;
