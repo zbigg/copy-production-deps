@@ -12,6 +12,9 @@ import * as path from "path";
 import * as fs from "fs";
 import yargs from "yargs";
 
+function parseList(args: string[]): string[] {
+    return ([] as string[]).concat(...args.map((arg) => (arg.includes(",") ? arg.split(",") : [arg])));
+}
 async function asyncCommand(code: () => void) {
     try {
         await code();
@@ -55,6 +58,11 @@ function main() {
             description: "Exclude file pattern (minimatch glob)",
             default: [] as string[]
         })
+        .option("only-packages", {
+            type: "array",
+            description: "Include only those packages",
+            default: [] as string[]
+        })
         .command(
             "$0 [packageDir] [distDir]",
             "copy production deps from Npm/Yarn workspace to dist folder",
@@ -80,11 +88,14 @@ function main() {
                         const lines = parseBasicPatternList(fs.readFileSync(excludeFrom, "utf-8"));
                         allExcludedGlobs.push(...lines);
                     }
+                    const onlyPackages =
+                        argv["only-packages"].length > 0 ? parseList(argv["only-packages"]) : undefined;
                     const excludePaths = allExcludedGlobs.length > 0 ? globListFilter(allExcludedGlobs) : undefined;
                     const options: CopyProductionDepsOptions = {
                         dryRun: argv.dryRun,
                         verbose: argv.verbose,
-                        excludePaths: excludePaths
+                        excludePaths: excludePaths,
+                        onlyPackages
                     };
                     await copyProductionDeps(packageDir, distDir, options);
                 })

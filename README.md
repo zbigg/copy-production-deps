@@ -6,7 +6,7 @@
 
 Find and copy production deps of `package` living in `yarn workspace` to `dist` folder.
 
-**NOTE: This is very experimental package.**, nevertheless it's used in one internal project 
+**NOTE: This is very experimental package.**, nevertheless it's used in one internal project
 to build minimal `node_modules` for services running in docker.
 
 ## Usage
@@ -17,6 +17,10 @@ $ npx copy-production-deps
 
 # copy deps specific package to specific folder
 $ npx copy-production-deps packages/foo-backend dist/foo-backend
+
+# Only dist selected packages that are not bundled with esbuild
+$ esbuild server.js --outfile dist/server.js --external:mongoose --external:hiredis
+$ npx copy-production-deps . dist --only-packages mongoose,hiredis
 ```
 
 ## Doc
@@ -41,9 +45,8 @@ Options:
   --exclude-from  Read ecluded file patterns from file one pattern a line.
                                                            [array] [default: []]
   --exclude       Exclude file pattern (minimatch glob)    [array] [default: []]
+  --only-packages Include only those packages         [array] [default: []
   --help          Show help                                            [boolean]
-
-
 ```
 
 ## Why

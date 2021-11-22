@@ -333,6 +333,7 @@ export function assignTargetDirs(allPackages: Context, rootPkg: ResolvedPackage)
 export interface CopyProductionDepsOptions {
     dryRun?: boolean;
     verbose?: boolean;
+    onlyPackages?: string[];
     excludePaths?: (srcFileName: string) => boolean;
 }
 
@@ -450,6 +451,10 @@ export async function copyProductionDeps(
     }
     if (options.verbose) {
         console.error(`copy-production-deps: found ${context.length} packages`);
+    }
+    if (options.onlyPackages) {
+        rootDep.deps = rootDep.deps.filter((d) => options.onlyPackages?.includes(d.name));
+        console.error(`copy-production-deps: only bundling deps of ${options.onlyPackages}`);
     }
     const targetPackages = assignTargetDirs(context, rootDep);
 
