@@ -164,7 +164,8 @@ describe("copy-production-deps", function () {
                                 d: "^1.0.0",
                                 "@org/r1": "^1.0.0",
                                 "@org/r2": "^1.0.0",
-                                "@org/r3": "^1.0.0"
+                                "@org/r3": "^1.0.0",
+                                "foo-library": "file:../foo-library"
                             },
                             devDependencies: {
                                 x: "^1.0.0"
@@ -233,6 +234,12 @@ describe("copy-production-deps", function () {
                                 })
                             }
                         }
+                    },
+                    "foo-library": {
+                        "package.json": JSON.stringify({
+                            name: "foo-library",
+                            version: "0.1.0"
+                        })
                     },
                     node_modules: {
                         a: {
@@ -310,6 +317,11 @@ describe("copy-production-deps", function () {
                     name: "s",
                     sourceDir: "workspaceRoot/foo-backend/node_modules/@org/r3/node_modules/s",
                     version: "2.0.0"
+                },
+                {
+                    name: "foo-library",
+                    sourceDir: "workspaceRoot/foo-library",
+                    version: "0.1.0"
                 }
             ]);
             assert.notDeepNestedInclude(interestingContext as any, {
@@ -352,6 +364,12 @@ describe("copy-production-deps", function () {
                     sourceDir: "workspaceRoot/foo-backend/node_modules/d",
                     targetDir: "THE-TARGET/node_modules/d",
                     version: "1.0.0"
+                },
+                {
+                    name: "foo-library",
+                    sourceDir: "workspaceRoot/foo-library",
+                    targetDir: "THE-TARGET/node_modules/foo-library",
+                    version: "0.1.0"
                 }
             ]);
             assert.includeDeepMembers(testedPackages as any, [
@@ -378,6 +396,7 @@ describe("copy-production-deps", function () {
             assertPackageExists("./dist", { name: "@org/r1", version: "1.0.0" });
             assertPackageExists("./dist", { name: "@org/r2", version: "1.0.0" });
             assertPackageExists("./dist", { name: "@org/r3", version: "1.0.0" });
+            assertPackageExists("./dist", { name: "foo-library", version: "0.1.0" });
             assertPackageExists("./dist", { name: "s", version: "1.0.0" });
             assertPackageExists("./dist/node_modules/@org/r3", { name: "s", version: "2.0.0" });
             assertPackageExists("./dist/node_modules/a", { name: "b", version: "1.0.0" });
