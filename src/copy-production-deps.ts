@@ -127,36 +127,57 @@ function addPackage(
 function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Dependency[], context: Context) {
     const subPackages: SourcePackage[] = [];
     for (const { name, version } of dependencies) {
+        function tryPackageDir(candidatePath: string, requiredVersion?: string) {
+            const candidatePackageJsonPath = relative(path.join(candidatePath, "package.json"));
+            if (!fs.existsSync(candidatePackageJsonPath)) {
+                return false;
+            }
+            const candidatePackageJson = loadJsonSync(absolute(candidatePackageJsonPath));
+            const candidateVersion: string = candidatePackageJson.version;
+
+            if (!requiredVersion || semver.satisfies(candidateVersion, requiredVersion)) {
+                const newDep = addPackage(
+                    {
+                        name,
+                        version: candidateVersion,
+                        sourceDir: candidatePath
+                    },
+                    pkg,
+                    context
+                );
+
+                if (newDep.users.length === 1) {
+                    subPackages.push(newDep);
+                }
+                pkg.deps.push(newDep);
+                return true;
+            }
+            return false;
+        }
+
+        let searchPackageDir = pkg.sourceDir;
+        if (version.startsWith("file:")) {
+            const candidatePath = relative(path.join(pkg.sourceDir, version.substring(5)));
+            if (!tryPackageDir(candidatePath)) {
+                console.error(`error: cannot find ${name} in ${candidatePath} as specified in ${version}`);
+                context.push({
+                    name,
+                    version,
+                    users: [pkg]
+                });
+            }
+            continue;
+        }
+
         // Start from sourcePackageDir/node_modules and look for deps, they should be there or
         // in already found folders!
         // In general, assuming that yarn did it's job, they should be found either in
         //   - step1, i.e in sourcePackageDir/node_modules/name/node_modules
         //   - somewhere in parent
-        let searchPackageDir = pkg.sourceDir;
         while (true) {
             let candidatePath = relative(path.join(searchPackageDir, "node_modules", name));
-            const candidatePackageJsonPath = relative(path.join(candidatePath, "package.json"));
-            if (fs.existsSync(candidatePackageJsonPath)) {
-                const candidatePackageJson = loadJsonSync(absolute(candidatePackageJsonPath));
-                const candidateVersion: string = candidatePackageJson.version;
-                if (!semver.valid(version) || semver.satisfies(candidateVersion, version)) {
-                    const newDep = addPackage(
-                        {
-                            name,
-                            version: candidateVersion,
-                            sourceDir: candidatePath
-                        },
-                        pkg,
-                        context
-                    );
-
-                    // Only process this package, if we're the first user.
-                    if (newDep.users.length === 1) {
-                        subPackages.push(newDep);
-                    }
-                    pkg.deps.push(newDep);
-                    break;
-                }
+            if (tryPackageDir(candidatePath, version)) {
+                break;
             }
             const idx = searchPackageDir.lastIndexOf("/node_modules");
             if (idx !== -1) {
