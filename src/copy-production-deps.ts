@@ -29,11 +29,10 @@ export function relative(p: string) {
 export interface Dependency {
     name: string;
     version: string;
+    isOptional?: boolean;
 }
 
-export interface BadDependency {
-    name: string;
-    version: string;
+export interface BadDependency extends Dependency {
     users: SourcePackage[];
 }
 
@@ -54,7 +53,7 @@ function isProperSourcePackage(pkg: SourcePackage | BadDependency): pkg is Sourc
 }
 
 function isBadDependency(pkg: SourcePackage | BadDependency): pkg is BadDependency {
-    return typeof (pkg as SourcePackage).sourceDir === "undefined";
+    return typeof (pkg as SourcePackage).sourceDir === "undefined" && pkg.isOptional !== true;
 }
 
 export type Context = Array<SourcePackage | BadDependency>;
@@ -126,7 +125,7 @@ function addPackage(
  */
 function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Dependency[], context: Context) {
     const subPackages: SourcePackage[] = [];
-    for (const { name, version } of dependencies) {
+    for (const { name, version, isOptional } of dependencies) {
         function tryPackageDir(candidatePath: string, requiredVersion?: string) {
             const candidatePackageJsonPath = relative(path.join(candidatePath, "package.json"));
             if (!fs.existsSync(candidatePackageJsonPath)) {
@@ -159,12 +158,17 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
         if (version.startsWith("file:")) {
             const candidatePath = relative(path.join(pkg.sourceDir, version.substring(5)));
             if (!tryPackageDir(candidatePath)) {
-                console.error(`error: cannot find ${name} in ${candidatePath} as specified in ${version}`);
                 context.push({
                     name,
                     version,
+                    isOptional,
                     users: [pkg]
                 });
+                if (isOptional) {
+                    continue;
+                } else {
+                    console.error(`error: cannot find ${name} in ${candidatePath} as specified in ${version}`);
+                }
             }
             continue;
         }
@@ -186,12 +190,17 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
             } else if (searchPackageDir !== rootDir && searchPackageDir !== "/") {
                 searchPackageDir = path.resolve(searchPackageDir, "..");
             } else {
-                console.error(`error: cannot find ${name} required in ${pkg.sourceDir}`);
                 context.push({
                     name,
                     version,
+                    isOptional,
                     users: [pkg]
                 });
+                if (isOptional) {
+                    break;
+                }
+                console.error(`error: cannot find ${name} required in ${pkg.sourceDir}`);
+
                 break;
             }
         }
@@ -205,12 +214,22 @@ function lookForDependenciesInWorkspace(pkg: SourcePackage, dependencies: Depend
 export function processPackage(pkg: SourcePackage, context: Context) {
     const packageJsonPath = absolute(path.join(pkg.sourceDir, "package.json"));
     const packageJson = loadJsonSync(packageJsonPath);
-    const localDependencies = Object.keys(packageJson.dependencies || {}).map((name) => {
+    const localDependencies: Dependency[] = Object.keys(packageJson.dependencies || {}).map((name) => {
         return {
             name,
             version: packageJson.dependencies[name]
         };
     });
+    if (packageJson.optionalDependencies) {
+        // TODO: what if dependencies and optionalDependencies have same package with non-compatible version?
+        Object.keys(packageJson.optionalDependencies).forEach((name) => {
+            localDependencies.push({
+                name,
+                version: packageJson.optionalDependencies[name],
+                isOptional: true
+            });
+        });
+    }
 
     lookForDependenciesInWorkspace(pkg, localDependencies, context);
 }
