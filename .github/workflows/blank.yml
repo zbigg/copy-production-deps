@@ -11,7 +11,7 @@ on:
     branches: [ master ]
 
 env:
-  nodeVersion: 14
+  nodeVersion: 18
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -22,31 +22,29 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Use Node.js ${{ matrix.node_version }}	    
+    - name: Use Node.js ${{ matrix.node_version }}
       uses: actions/setup-node@v1
       with:
         node-version: ${{ env.nodeVersion }}
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
-      
+
     # Runs a set of commands using the runners shell
     - name: Test
       run: yarn cov-test
-    
+
     - name: Upload coverage report
       run: yarn run codecov
-    
+
     - name: Create temporary package version
       run: yarn version --no-git-tag-version --prepatch --preid `git log --pretty=format:'%h' -n 1`
-      
+
     - name: Build package
       run: npm pack
-      
+
     - name: Save package artifact
       uses: actions/upload-artifact@v2
       with:
         name: npm-package
         path: copy-production-deps*.tgz
-      
-      

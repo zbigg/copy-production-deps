@@ -8,7 +8,7 @@
     "license": "MIT",
     "main": "lib/copy-production-deps.js",
     "engines": {
-        "node": ">=10"
+        "node": ">=18"
     },
     "files": [
         "lib/copy-production-deps.js",
@@ -35,10 +35,10 @@
         "chai": "^4.2.0",
         "codecov": "^3.7.2",
         "mocha": "^10.2.0",
-        "mock-fs": "^5.1.2",
+        "mock-fs": "^5.2.0",
         "nyc": "^15.1.0",
         "prettier": "^2.0.5",
-        "ts-node": "^10.4.0",
+        "ts-node": "^10.9.2",
         "typescript": "^5.0.4"
     },
     "dependencies": {
