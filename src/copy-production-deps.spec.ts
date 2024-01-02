@@ -1,4 +1,5 @@
 import { assert } from "chai";
+import mockFs from "mock-fs";
 import {
     processPackage,
     assignTargetDirs,
@@ -7,7 +8,6 @@ import {
     copyProductionDeps,
     Dependency
 } from "./copy-production-deps";
-import mockFs from "mock-fs";
 import _ from "lodash";
 import * as path from "path";
 import * as fs from "fs";
@@ -29,7 +29,7 @@ function assertPackageExists(context: string, pkg: Dependency) {
 
 describe("copy-production-deps", function () {
     describe("use case #1 - simple transitive dependency", function () {
-        before(function () {
+        beforeEach(function () {
             mockFs({
                 foopath: {
                     "package.json": JSON.stringify({
@@ -78,7 +78,7 @@ describe("copy-production-deps", function () {
                 }
             });
         });
-        after(function () {
+        afterEach(function () {
             mockFs.restore();
         });
         const context: SourcePackage[] = [];
@@ -161,7 +161,6 @@ describe("copy-production-deps", function () {
                             dependencies: {
                                 a: "^1.0.0",
                                 b: "^0.1.0",
-                                d: "^1.0.0",
                                 "@org/r1": "^1.0.0",
                                 "@org/r2": "^1.0.0",
                                 "@org/r3": "^1.0.0",
@@ -169,6 +168,10 @@ describe("copy-production-deps", function () {
                             },
                             devDependencies: {
                                 x: "^1.0.0"
+                            },
+                            optionalDependencies: {
+                                d: "^1.0.0", // this should be resolved
+                                "missing-package": "^2.0.0" // this not as it doesn't exist in node_modules
                             }
                         }),
                         node_modules: {
@@ -225,7 +228,7 @@ describe("copy-production-deps", function () {
                                             })
                                         }
                                     }
-                                },
+                                }
                             },
                             s: {
                                 "package.json": JSON.stringify({
@@ -286,7 +289,7 @@ describe("copy-production-deps", function () {
         it("#processPackage finds all packages", function () {
             processPackage(rootDep, context);
 
-            const interestingContext = context.map((r) => _.pick(r, ["name", "sourceDir", "version"]));
+            const interestingContext = context.map((r) => _.pick(r, ["name", "sourceDir", "version", "isOptional"]));
             assert.includeDeepMembers(interestingContext as any, [
                 {
                     name: "a",
@@ -328,6 +331,11 @@ describe("copy-production-deps", function () {
                 name: "x",
                 sourceDir: "workspaceRoot/foo-backend/node_modules/x",
                 version: "1.0.0"
+            });
+            assert.deepNestedInclude(interestingContext as any, {
+                name: "missing-package",
+                version: "^2.0.0",
+                isOptional: true
             });
         });
         it("#assignTargetDirs emits target folders", function () {
